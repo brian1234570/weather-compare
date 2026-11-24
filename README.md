@@ -80,7 +80,15 @@ Failover test: `sudo systemctl stop weather-compare` on Web01, and the site must
 - **API key exposure:** moved all API calls to the backend; key lives in `.env` (git-ignored).
 - **Rate limits / slow responses:** added a 10-minute cache and 8-second timeout.
 - **Proving balancing:** added `X-Served-By` header and on-page server label.
-- *(Add your own challenges here.)*
+- **Empty repository on first clone:** the repo had no files yet, so `npm install` failed. I copied the project in and pushed it before cloning anywhere else.
+- **Renamed dot-files:** downloaded files such as `.gitignore` and `.env.example` lost their leading dot. I renamed them and checked `.gitignore` so `.env` could never be committed.
+- **Broken `.env` value:** a stray character in the `PORT` line made the server fail with `EACCES`. I fixed the line and later built `.env` on the servers with `printf` and a hidden prompt, then checked its length, to avoid typing errors.
+- **Node.js missing on Web02:** the first install attempt did not complete. Re-running the NodeSource setup and `apt install nodejs` fixed it.
+- **Deployment on two servers:** I used systemd so the app restarts on failure and on boot, and nginx to serve it on port 80.
+- **Proving load balancing:** I added an `X-Served-By` header and an on-page server label, and tested round-robin with a curl loop and a failover test by stopping Web01.
 
 ## Credits
 OpenWeatherMap API · Express · dotenv · nginx · HAProxy
+
+## Credentials
+No login is required to use the app. The API key is supplied privately in the submission comment and is never stored in this repository.
