@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weather Compare</title>
+<style>
+  :root { --bg:#f4f7fb; --card:#fff; --text:#1d2733; --muted:#6b7a8c; --accent:#2563eb; --line:#e2e8f0; --err:#b91c1c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8; --accent:#60a5fa; --line:#334155; --err:#f87171; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+  h1 { margin: 0 0 4px; } .sub { color: var(--muted); margin-bottom: 20px; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  input { flex:1; min-width:140px; padding:10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); }
+  button { padding:10px 16px; border:0; border-radius:8px; background:var(--accent); color:#fff; cursor:pointer; }
+  button.link { background:none; color:var(--err); padding:2px 6px; }
+  #msg { color: var(--err); min-height: 1.3em; margin-top: 8px; }
+  .tablewrap { overflow-x:auto; }
+  table { width:100%; border-collapse: collapse; }
+  th, td { padding:10px 8px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { cursor:pointer; user-select:none; color:var(--muted); font-size:.85rem; }
+  th:hover { color: var(--accent); }
+  .empty { color: var(--muted); text-align:center; padding: 20px; }
+  .badge { font-size:.8rem; color:var(--muted); margin-top:12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🌤 Weather Compare</h1>
+  <div class="sub">Add cities, then sort, filter and search to compare live conditions.</div>
+
+  <div class="card">
+    <div class="row">
+      <input id="cityInput" placeholder="Add a city (e.g. Kigali)" autocomplete="off">
+      <button id="addBtn">Add city</button>
+    </div>
+    <div id="msg" role="alert"></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <input id="search" placeholder="Search city / condition">
+      <input id="minTemp" type="number" placeholder="Min temp °C">
+      <input id="maxTemp" type="number" placeholder="Max temp °C">
+    </div>
+    <div class="tablewrap" style="margin-top:12px">
+      <table>
+        <thead><tr>
+          <th data-k="city">City ⇅</th><th data-k="temp">Temp °C ⇅</th><th data-k="feelsLike">Feels ⇅</th>
+          <th data-k="humidity">Humidity % ⇅</th><th data-k="wind">Wind m/s ⇅</th><th data-k="condition">Condition ⇅</th><th></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="badge" id="server">Served by: …</div>
+  <div class="badge">Data: <a href="https://openweathermap.org/api" target="_blank" rel="noopener">OpenWeatherMap</a></div>
+</main>
+<script>
+  let cities = [];
+  let sortKey = 'city', sortDir = 1;
+  const $ = id => document.getElementById(id);
+
+  fetch('/api/server').then(r => r.json()).then(d => $('server').textContent = 'Served by: ' + d.host)
+    .catch(() => $('server').textContent = 'Served by: unknown');
+
+  async function addCity() {
+    const name = $('cityInput').value.trim();
+    $('msg').textContent = '';
+    if (!name) return;
+    $('addBtn').disabled = true;
+    try {
+      const r = await fetch('/api/weather?city=' + encodeURIComponent(name));
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Something went wrong.');
+      if (cities.some(c => c.city === d.city && c.country === d.country)) throw new Error(d.city + ' is already in the list.');
+      cities.push(d);
+      $('cityInput').value = '';
+      render();
+    } catch (e) {
+      $('msg').textContent = e.message || 'Network error. Check your connection.';
+    } finally { $('addBtn').disabled = false; }
+  }
+
+  function render() {
+    const q = $('search').value.trim().toLowerCase();
+    const min = $('minTemp').value === '' ? -Infinity : +$('minTemp').value;
+    const max = $('maxTemp').value === '' ? Infinity : +$('maxTemp').value;
+    const list = cities
+      .filter(c => (c.city + ' ' + c.condition + ' ' + c.country).toLowerCase().includes(q) && c.temp >= min && c.temp <= max)
+      .sort((a, b) => (a[sortKey] > b[sortKey] ? 1 : a[sortKey] < b[sortKey] ? -1 : 0) * sortDir);
+    const tbody = $('rows');
+    tbody.replaceChildren();
+    if (!list.length) {
+      const tr = tbody.insertRow(); const td = tr.insertCell();
+      td.colSpan = 7; td.className = 'empty';
+      td.textContent = cities.length ? 'No cities match your filters.' : 'No cities yet. Add one above.';
+      return;
+    }
+    for (const c of list) {   // textContent only -> XSS-safe
+      const tr = tbody.insertRow();
+      [`${c.city}, ${c.country}`, c.temp, c.feelsLike, c.humidity, c.wind, c.condition]
+        .forEach(v => tr.insertCell().textContent = v);
+      const b = document.createElement('button');
+      b.className = 'link'; b.textContent = 'Remove';
+      b.onclick = () => { cities = cities.filter(x => x !== c); render(); };
+      tr.insertCell().appendChild(b);
+    }
+  }
+
+  document.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => {
+    const k = th.dataset.k;
+    sortDir = (sortKey === k) ? -sortDir : 1; sortKey = k; render();
+  });
+  ['search', 'minTemp', 'maxTemp'].forEach(id => $(id).addEventListener('input', render));
+  $('addBtn').onclick = addCity;
+  $('cityInput').addEventListener('keydown', e => { if (e.key === 'Enter') addCity(); });
+  render();
+</script>
+</body>
+</html>

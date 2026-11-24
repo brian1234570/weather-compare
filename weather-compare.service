@@ -1,0 +1,13 @@
+[Unit]
+Description=Weather Compare app
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/weather-compare
+ExecStart=/usr/bin/node server.js
+Restart=always
+User=ubuntu
+EnvironmentFile=/opt/weather-compare/.env
+
+[Install]
+WantedBy=multi-user.target

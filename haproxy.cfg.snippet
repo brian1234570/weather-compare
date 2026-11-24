@@ -1,0 +1,12 @@
+# Append to /etc/haproxy/haproxy.cfg on lb-01
+frontend http_front
+    bind *:80
+    mode http
+    default_backend web_servers
+
+backend web_servers
+    mode http
+    balance roundrobin
+    option httpchk GET /api/health
+    server web01 35.177.173.247:80 check
+    server web02 18.132.97.141:80 check
