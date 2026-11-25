@@ -3,7 +3,7 @@
 Compare live weather across multiple cities in one table. Add cities, then **sort** (click headers), **filter** (min/max temperature) and **search** (city or condition).
 Built with Node.js/Express (backend proxy + cache) and vanilla HTML/CSS/JS.
 
-- **Demo video:** `<ADD LINK>`
+- **Demo video:** https://youtu.be/DMWS-eMbXYk
 - **Live (load balancer):** http://3.10.233.134
 - Web01: http://35.177.173.247 · Web02: http://18.132.97.141
 
